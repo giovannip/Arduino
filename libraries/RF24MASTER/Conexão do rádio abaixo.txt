@@ -1,0 +1,9 @@
+Conexão do rádio abaixo
+Rádio - Arduino
+VCC    3,3v
+GND  GND
+CSN  D7
+CE   D8
+MOSI D11
+SCK  D13
+MISO D12
