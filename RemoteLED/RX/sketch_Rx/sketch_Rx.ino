@@ -16,7 +16,7 @@ const uint64_t pipes[2] = { 0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL };
 byte myId;
 byte myState;
 
-byte package[2]; //Gambi -> pq struct não fuincionou
+byte package[3]; //Gambi -> pq struct nï¿½o fuincionou
 // [0] Id
 // [1] State
 
@@ -24,16 +24,24 @@ RF24 radio(8,7);
 
 void ReadConfig()
 {
-	//eeprom_read_block((void*)&package, (void*)0, sizeof(package));
-	EEPROM.write(0, myId);
-	EEPROM.write(1, myState);
+	Serial.println("ReadConfig");
+
+	myId    = EEPROM.read(0);
+	myState = EEPROM.read(1);
+
+	Serial.println(myId);
+	Serial.println(myState);
 }
 
 void WriteConfig()
 {
-	//eeprom_write_block((const void*)&package, (void*)0, sizeof(package));
-	myId    = EEPROM.read(0);
-	myState = EEPROM.read(1);
+	Serial.println("WriteConfig");
+
+	EEPROM.write(0, myId);
+	EEPROM.write(1, myState);
+
+	Serial.println(myId);
+	Serial.println(myState);
 }
 
 void ApplyLedState()
@@ -43,47 +51,57 @@ void ApplyLedState()
 
 bool UpdateMyData()
 {
+	Serial.println("UpdateMyData");
+	Serial.println(package[0]);
+	Serial.println(package[1]);
+	Serial.println(package[2]);
+	
 	if (package[0] != myId)
 		return false;
 
-	package[0] = myId;
-	package[1] = myState;
+	myId = package[0];
+	myState = package[1];
 	return true;
 }
 
 void setup(void)
 {
-	pinMode(LedPin, OUTPUT);
-
-	ReadConfig();
-	ApplyLedState();
-
 	Serial.begin(9600);
+
 	radio.begin();
 	radio.setChannel(10);
 	radio.openReadingPipe(1,pipe);
 		
 	radio.startListening();
+
+	pinMode(LedPin, OUTPUT);
+
+	ReadConfig();
+	ApplyLedState();	
 }
 
 void loop(void)
 {
-	if (!radio.available())
-		return;
-	
-	// Dump the payloads until we've gotten everything
-	bool done = false;
-	while (!done)
+	if (radio.available())
 	{
-		// Fetch the payload, and see if this was the last one.
-		done = radio.read( package, sizeof(package) );
+		Serial.println("radio.available");
+	
+		// Dump the payloads until we've gotten everything
+		bool done = false;
+		while (!done)
+		{
+			// Fetch the payload, and see if this was the last one.
+			done = radio.read( package, sizeof(package) );
+		}
+
+		if (UpdateMyData())
+		{
+			Serial.println("UpdateMyData true");
+			
+			ApplyLedState();
+			WriteConfig();
+		}
 	}
-
-	if (!UpdateMyData())
-		return;
-
-	ApplyLedState();
-	WriteConfig();
 }
 
 void serialEvent() 

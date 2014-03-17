@@ -1,7 +1,6 @@
 #include <EEPROM.h>
 #include <SPI.h>
 #include "RF24.h"
-//#include <avr/eeprom.h>
 
 const int LedPin = 2;
 
@@ -15,14 +14,14 @@ const char SetClient1 = 'r';
 const char SetClient2 = 't';
 
 const uint64_t pipe  = 0xE8E8F0F0E1LL;
-const uint64_t pipes[2] = { 0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL };
+const uint64_t pipes[3] = { 0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL };
 
 byte myId; // Dump
 byte myState;
 byte targetId;
 byte autoLoop;
 
-byte package[2]; //Gambi -> pq struct não fuincionou
+byte package[2]; //Gambi -> pq struct nï¿½o fuincionou
 // [0] Id
 // [1] State
  
@@ -30,33 +29,53 @@ RF24 radio(8,7);
 
 void PackData()
 {
+	Serial.print("PackData -> ");
+	Serial.print(package[0]);
+	Serial.print(" : ");
+	Serial.println(package[1]);
 	package[0] = targetId;
 	package[1] = myState;
 }
 
 void ReadConfig()
 {
-	EEPROM.write(0, myId);
-	EEPROM.write(1, myState);
-	EEPROM.write(2, targetId);
-	EEPROM.write(3, autoLoop);
-}
+	Serial.println("ReadConfig");
 
-void WriteConfig()
-{
 	myId     = EEPROM.read(0);
 	myState  = EEPROM.read(1);
 	targetId = EEPROM.read(2);
 	autoLoop = EEPROM.read(3);
+	
+	Serial.println(myId);
+	Serial.println(myState);
+	Serial.println(targetId);
+	Serial.println(autoLoop);
+}
+
+void WriteConfig()
+{
+	Serial.println("WriteConfig");
+	
+	EEPROM.write(0, myId);
+	EEPROM.write(1, myState);
+	EEPROM.write(2, targetId);
+	EEPROM.write(3, autoLoop);
+	
+	Serial.println(myId);
+	Serial.println(myState);
+	Serial.println(targetId);
+	Serial.println(autoLoop);
 }
 
 void ApplyLedState()
 {
+	Serial.println("ApplyLedState");
 	digitalWrite(LedPin, myState);
 }
 
 void SendData()
 {
+	Serial.println("SendData");
 	radio.write( package, sizeof(package) );
 }
  
@@ -70,6 +89,8 @@ void setup(void)
 	radio.begin();
 	radio.setChannel(10);
 	radio.openWritingPipe(pipe);
+
+	ReadConfig();
 }
  
 void easyGo()
@@ -96,28 +117,21 @@ void serialEvent()
 	char inChar = (char)Serial.read(); 
 	
 	if (inChar == SetClient1)
-	{
 		targetId = 1;
-		WriteConfig();
-	}
 	else if (inChar == SetClient2) 
-	{
 		targetId = 2;
-		WriteConfig();
-	}
-	else
-	{
-		if (inChar == LedOn) 
+	else if (inChar == LedOn) 
 			myState = HIGH;
-		else if (inChar == LedOff) 
-			myState = LOW;
-		else if (inChar == AutoOn) 
-			autoLoop = HIGH;
-		else if (inChar == AutoOff) 
-			autoLoop = LOW;
-		else
-			return;
+	else if (inChar == LedOff) 
+		myState = LOW;
+	else if (inChar == AutoOn) 
+		autoLoop = HIGH;
+	else if (inChar == AutoOff) 
+		autoLoop = LOW;
+	else
+		return;
 
-		easyGo();
-	}
+	WriteConfig();
+	easyGo();
+
 }
