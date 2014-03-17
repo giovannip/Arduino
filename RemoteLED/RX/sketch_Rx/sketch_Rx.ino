@@ -13,8 +13,9 @@ void setup(void)
 	val[0] = LOW;
 	digitalWrite(2, val[0]);
 	
-	Serial.begin(9600);
+	//Serial.begin(9600);
 	radio.begin();
+	radio.setChannel(10);
 	radio.openReadingPipe(1,pipe);
 	radio.startListening();
 }
@@ -30,14 +31,13 @@ void loop(void)
 			// Fetch the payload, and see if this was the last one.
 			done = radio.read( val, sizeof(val) );
 			
-			digitalWrite(2, val[0]);
 			
-			Serial.println(val[0]);
-			delay(21);
+			//Serial.println(val[0]);
+			//delay(21);
 		}
+		
+		digitalWrite(2, val[0]);
 	}
-	else
-	{
-		Serial.println("No radio available");
-	}
+	//else
+		//Serial.println("No radio available");
 }
