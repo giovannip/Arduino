@@ -1,19 +1,70 @@
+#include <EEPROM.h>
 #include <SPI.h>
 #include "RF24.h"
- 
-int val[2];
-int lauto;
+//#include <avr/eeprom.h>
+
+const int LedPin = 2;
+
+const char LedOn  = 'l';
+const char LedOff = 'd';
+const char AutoOn = 'a';
+const char AutoOff = 'q';
+
+//Gambi
+const char SetClient1 = 'r';
+const char SetClient2 = 't';
+
+const uint64_t pipe  = 0xE8E8F0F0E1LL;
+const uint64_t pipes[2] = { 0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL };
+
+byte myId; // Dump
+byte myState;
+byte targetId;
+byte autoLoop;
+
+byte package[2]; //Gambi -> pq struct não fuincionou
+// [0] Id
+// [1] State
  
 RF24 radio(8,7);
- 
-const uint64_t pipe = 0xE8E8F0F0E1LL;
+
+void PackData()
+{
+	package[0] = targetId;
+	package[1] = myState;
+}
+
+void ReadConfig()
+{
+	EEPROM.write(0, myId);
+	EEPROM.write(1, myState);
+	EEPROM.write(2, targetId);
+	EEPROM.write(3, autoLoop);
+}
+
+void WriteConfig()
+{
+	myId     = EEPROM.read(0);
+	myState  = EEPROM.read(1);
+	targetId = EEPROM.read(2);
+	autoLoop = EEPROM.read(3);
+}
+
+void ApplyLedState()
+{
+	digitalWrite(LedPin, myState);
+}
+
+void SendData()
+{
+	radio.write( package, sizeof(package) );
+}
  
 void setup(void)
 {
-	pinMode(2, OUTPUT);
-	val[0] = LOW;
-	lauto = HIGH;
-	digitalWrite(2, val[0]);
+	pinMode(LedPin, OUTPUT);
+
+	ApplyLedState();
 	
 	Serial.begin(9600);
 	radio.begin();
@@ -21,38 +72,52 @@ void setup(void)
 	radio.openWritingPipe(pipe);
 }
  
-void loop(void)
+void easyGo()
 {
-	if (lauto == HIGH)
-	{
-		if (val[0] == HIGH)
-			val[0] = LOW;
-		else
-			val[0] = HIGH;
-			
-		digitalWrite(2, val[0]);
-			
-		radio.write( val, sizeof(val) );
-
-			delay(500);
-	}
+	PackData();
+	SendData();
+	ApplyLedState();
 }
 
+void loop(void)
+{
+	if (autoLoop == LOW)
+		return;
+	
+	myState = !myState;
+
+	easyGo();
+	
+	delay(500);
+}
 
 void serialEvent() 
 {
 	char inChar = (char)Serial.read(); 
 	
-	if (inChar == 'd') 
-		val[0] = LOW;
-	else if (inChar == 'l') 
-		val[0] = HIGH;
-	else if (inChar == 'a') 
-		lauto = HIGH;
-	else if (inChar == 'q') 
-		lauto= LOW;
-		
-	digitalWrite(2, val[0]);
-		
-	radio.write( val, sizeof(val) );
+	if (inChar == SetClient1)
+	{
+		targetId = 1;
+		WriteConfig();
+	}
+	else if (inChar == SetClient2) 
+	{
+		targetId = 2;
+		WriteConfig();
+	}
+	else
+	{
+		if (inChar == LedOn) 
+			myState = HIGH;
+		else if (inChar == LedOff) 
+			myState = LOW;
+		else if (inChar == AutoOn) 
+			autoLoop = HIGH;
+		else if (inChar == AutoOff) 
+			autoLoop = LOW;
+		else
+			return;
+
+		easyGo();
+	}
 }

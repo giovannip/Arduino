@@ -1,43 +1,103 @@
+#include <EEPROM.h>
 #include <SPI.h>
 #include "nRF24L01.h"
 #include "RF24.h"
- 
-int val[2];
- 
+//#include <avr/eeprom.h>
+
+const int LedPin = 2;
+
+//Gambi
+const char SetClient1 = 'r';
+const char SetClient2 = 't';
+
+const uint64_t pipe  = 0xE8E8F0F0E1LL;
+const uint64_t pipes[2] = { 0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL };
+
+byte myId;
+byte myState;
+
+byte package[2]; //Gambi -> pq struct não fuincionou
+// [0] Id
+// [1] State
+
 RF24 radio(8,7);
-const uint64_t pipe = 0xE8E8F0F0E1LL;
- 
+
+void ReadConfig()
+{
+	//eeprom_read_block((void*)&package, (void*)0, sizeof(package));
+	EEPROM.write(0, myId);
+	EEPROM.write(1, myState);
+}
+
+void WriteConfig()
+{
+	//eeprom_write_block((const void*)&package, (void*)0, sizeof(package));
+	myId    = EEPROM.read(0);
+	myState = EEPROM.read(1);
+}
+
+void ApplyLedState()
+{
+	digitalWrite(LedPin, myState);
+}
+
+bool UpdateMyData()
+{
+	if (package[0] != myId)
+		return false;
+
+	package[0] = myId;
+	package[1] = myState;
+	return true;
+}
+
 void setup(void)
 {
-	pinMode(2, OUTPUT);
-	val[0] = LOW;
-	digitalWrite(2, val[0]);
-	
-	//Serial.begin(9600);
+	pinMode(LedPin, OUTPUT);
+
+	ReadConfig();
+	ApplyLedState();
+
+	Serial.begin(9600);
 	radio.begin();
 	radio.setChannel(10);
 	radio.openReadingPipe(1,pipe);
+		
 	radio.startListening();
 }
- 
+
 void loop(void)
 {
-	if ( radio.available() )
+	if (!radio.available())
+		return;
+	
+	// Dump the payloads until we've gotten everything
+	bool done = false;
+	while (!done)
 	{
-		// Dump the payloads until we've gotten everything
-		bool done = false;
-		while (!done)
-		{
-			// Fetch the payload, and see if this was the last one.
-			done = radio.read( val, sizeof(val) );
-			
-			
-			//Serial.println(val[0]);
-			//delay(21);
-		}
-		
-		digitalWrite(2, val[0]);
+		// Fetch the payload, and see if this was the last one.
+		done = radio.read( package, sizeof(package) );
 	}
-	//else
-		//Serial.println("No radio available");
+
+	if (!UpdateMyData())
+		return;
+
+	ApplyLedState();
+	WriteConfig();
+}
+
+void serialEvent() 
+{
+	char inChar = (char)Serial.read(); 
+	
+	if (inChar == SetClient1)
+	{
+		myId = 1;
+		WriteConfig();
+	}
+	else if (inChar == SetClient2) 
+	{
+		myId = 2;
+		WriteConfig();
+	}
 }
