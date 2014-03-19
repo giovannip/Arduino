@@ -13,15 +13,19 @@ const char AutoOff = 'q';
 const char SetClient1 = 'r';
 const char SetClient2 = 't';
 
-const uint64_t pipe  = 0xE8E8F0F0E1LL;
-const uint64_t pipes[3] = { 0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL };
+//const uint64_t pipe  = 0xE8E8F0F0E1LL;
+//const uint64_t pipes[3] = { 0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL };
+const uint64_t pipeServerToClient  = 0xE8E8F0F0E1LL;
+const uint64_t pipeClientToServer  = 0xF0F0F0F0E1LL;
+const int radioChannel = 10;
 
 byte myId; // Dump
 byte myState;
 byte targetId;
 byte autoLoop;
 
-byte package[2]; //Gambi -> pq struct n�o fuincionou
+byte SendedPackage[2]; //Gambi -> pq struct nao fuincionou
+byte RecivedPackage[2];
 // [0] Id
 // [1] State
  
@@ -30,11 +34,11 @@ RF24 radio(8,7);
 void PackData()
 {
 	Serial.print("PackData -> ");
-	Serial.print(package[0]);
+	Serial.print(SendedPackage[0]);
 	Serial.print(" : ");
-	Serial.println(package[1]);
-	package[0] = targetId;
-	package[1] = myState;
+	Serial.println(SendedPackage[1]);
+	SendedPackage[0] = targetId;
+	SendedPackage[1] = myState;
 }
 
 void ReadConfig()
@@ -46,9 +50,13 @@ void ReadConfig()
 	targetId = EEPROM.read(2);
 	autoLoop = EEPROM.read(3);
 	
+	Serial.print("myId        -> ");
 	Serial.println(myId);
+	Serial.print("myState   -> ");
 	Serial.println(myState);
+	Serial.print("targetId    -> ");
 	Serial.println(targetId);
+	Serial.print("autoLoop  -> ");
 	Serial.println(autoLoop);
 }
 
@@ -61,9 +69,13 @@ void WriteConfig()
 	EEPROM.write(2, targetId);
 	EEPROM.write(3, autoLoop);
 	
+	Serial.print("myId        -> ");
 	Serial.println(myId);
+	Serial.print("myState   -> ");
 	Serial.println(myState);
+	Serial.print("targetId    -> ");
 	Serial.println(targetId);
+	Serial.print("autoLoop  -> ");
 	Serial.println(autoLoop);
 }
 
@@ -75,9 +87,45 @@ void ApplyLedState()
 
 void SendData()
 {
-	Serial.println("SendData");
-	radio.write( package, sizeof(package) );
+	int ntry = 3;
+	bool ok = false;
+	while ((!ok) && ntry > 0)
+	{
+		Serial.println("SendData");
+		radio.write( SendedPackage, sizeof(SendedPackage) );
+	
+		delay(5); // nao sei se eh pouco ou muito
+
+		if (radio.available())
+		{
+			Serial.println("radio.available");
+		
+			// Dump the payloads until we've gotten everything
+			bool done = false;
+			while (!done)
+			{
+				// Fetch the payload, and see if this was the last one.
+				done = radio.read( RecivedPackage, sizeof(RecivedPackage) );
+			}
+			
+			if (SendedPackage[0] == RecivedPackage[0])
+				ok = (RecivedPackage[1] == 1);
+			else
+			{
+				Serial.print("Resposta randon de ok -> ");
+				Serial.println(RecivedPackage[0]);
+				ntry++; //peguei uma resposta randon de alguem... nao conta
+			}
+		}
+		ntry--;
+	}
+	
+	Serial.print("SendData ok -> ");
+	Serial.print(ok);
+	Serial.print(" : ntry -> ");
+	Serial.println(ntry);
 }
+
  
 void setup(void)
 {
@@ -87,9 +135,12 @@ void setup(void)
 	
 	Serial.begin(9600);
 	radio.begin();
-	radio.setChannel(10);
-	radio.openWritingPipe(pipe);
-
+	radio.setChannel(radioChannel);
+	radio.openWritingPipe(pipeServerToClient);
+	radio.openReadingPipe(1,pipeClientToServer);
+		
+	radio.startListening();
+	
 	ReadConfig();
 }
  

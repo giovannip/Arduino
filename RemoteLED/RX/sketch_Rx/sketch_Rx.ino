@@ -10,13 +10,18 @@ const int LedPin = 2;
 const char SetClient1 = 'r';
 const char SetClient2 = 't';
 
-const uint64_t pipe  = 0xE8E8F0F0E1LL;
-const uint64_t pipes[2] = { 0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL };
+//const uint64_t pipe  = 0xE8E8F0F0E1LL;
+//const uint64_t pipes[3] = { 0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL };
+const uint64_t pipeServerToClient  = 0xE8E8F0F0E1LL;
+const uint64_t pipeClientToServer  = 0xF0F0F0F0E1LL;
+const int radioChannel = 10;
+
 
 byte myId;
 byte myState;
 
-byte package[3]; //Gambi -> pq struct n�o fuincionou
+byte RecivedPackage[3]; //Gambi -> pq struct nao fuincionou
+byte SendedPackage[2];
 // [0] Id
 // [1] State
 
@@ -52,15 +57,15 @@ void ApplyLedState()
 bool UpdateMyData()
 {
 	Serial.println("UpdateMyData");
-	Serial.println(package[0]);
-	Serial.println(package[1]);
-	Serial.println(package[2]);
+	Serial.println(RecivedPackage[0]);
+	Serial.println(RecivedPackage[1]);
+	Serial.println(RecivedPackage[2]);
 	
-	if (package[0] != myId)
+	if (RecivedPackage[0] != myId)
 		return false;
 
-	myId = package[0];
-	myState = package[1];
+	myId = RecivedPackage[0];
+	myState = RecivedPackage[1];
 	return true;
 }
 
@@ -69,9 +74,10 @@ void setup(void)
 	Serial.begin(9600);
 
 	radio.begin();
-	radio.setChannel(10);
-	radio.openReadingPipe(1,pipe);
-		
+	radio.setChannel(radioChannel);
+	radio.openReadingPipe(1,pipeServerToClient);
+	radio.openWritingPipe(pipeClientToServer);
+	
 	radio.startListening();
 
 	pinMode(LedPin, OUTPUT);
@@ -91,8 +97,12 @@ void loop(void)
 		while (!done)
 		{
 			// Fetch the payload, and see if this was the last one.
-			done = radio.read( package, sizeof(package) );
+			done = radio.read( RecivedPackage, sizeof(RecivedPackage) );
 		}
+		
+		//recebimento
+		PackData();
+		SendData();
 
 		if (UpdateMyData())
 		{
@@ -102,6 +112,22 @@ void loop(void)
 			WriteConfig();
 		}
 	}
+}
+
+void PackData()
+{
+	Serial.print("PackData -> ");
+	Serial.print(SendedPackage[0]);
+	Serial.print(" : ");
+	Serial.println(SendedPackage[1]);
+	SendedPackage[0] = myId;
+	SendedPackage[1] = 1; //pensar o que nao seria OK
+}
+
+void SendData()
+{
+	Serial.println("SendData");
+	radio.write( SendedPackage, sizeof(SendedPackage) );
 }
 
 void serialEvent() 
