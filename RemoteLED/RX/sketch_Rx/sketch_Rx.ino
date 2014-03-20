@@ -34,7 +34,9 @@ void ReadConfig()
 	myId    = EEPROM.read(0);
 	myState = EEPROM.read(1);
 
+	Serial.println("myId     ->");
 	Serial.println(myId);
+	Serial.println("myState ->");
 	Serial.println(myState);
 }
 
@@ -45,7 +47,9 @@ void WriteConfig()
 	EEPROM.write(0, myId);
 	EEPROM.write(1, myState);
 
+	Serial.println("myId     ->");
 	Serial.println(myId);
+	Serial.println("myState ->");
 	Serial.println(myState);
 }
 
@@ -57,9 +61,9 @@ void ApplyLedState()
 bool UpdateMyData()
 {
 	Serial.println("UpdateMyData");
-	Serial.println(RecivedPackage[0]);
+	Serial.print(RecivedPackage[0]);
+	Serial.print(" : ");
 	Serial.println(RecivedPackage[1]);
-	Serial.println(RecivedPackage[2]);
 	
 	if (RecivedPackage[0] != myId)
 		return false;
@@ -92,17 +96,13 @@ void loop(void)
 	{
 		Serial.println("radio.available");
 	
-		// Dump the payloads until we've gotten everything
+		int ntry = 3;
 		bool done = false;
-		while (!done)
+		while (!done && ntry > 0)
 		{
-			// Fetch the payload, and see if this was the last one.
 			done = radio.read( RecivedPackage, sizeof(RecivedPackage) );
+			ntry--;
 		}
-		
-		//recebimento
-		PackData();
-		SendData();
 
 		if (UpdateMyData())
 		{
@@ -117,17 +117,26 @@ void loop(void)
 void PackData()
 {
 	Serial.print("PackData -> ");
+	SendedPackage[0] = myId;
+	SendedPackage[1] = myState;
 	Serial.print(SendedPackage[0]);
 	Serial.print(" : ");
 	Serial.println(SendedPackage[1]);
-	SendedPackage[0] = myId;
-	SendedPackage[1] = 1; //pensar o que nao seria OK
 }
 
 void SendData()
 {
 	Serial.println("SendData");
-	radio.write( SendedPackage, sizeof(SendedPackage) );
+	int ntry = 3;
+	bool done = false;
+	while (!done && ntry > 0)
+	{
+		done = radio.write( SendedPackage, sizeof(SendedPackage) );
+		ntry--;
+	}
+	radio.startListening();
+	Serial.print("SendData ok -> ");
+	Serial.println(done);
 }
 
 void serialEvent() 
@@ -142,6 +151,22 @@ void serialEvent()
 	else if (inChar == SetClient2) 
 	{
 		myId = 2;
+		WriteConfig();
+	}
+	else if (inChar == '1') 
+	{
+		myState = 1;
+                PackData();
+		SendData();
+		ApplyLedState();
+		WriteConfig();
+	}
+	else if (inChar == '2') 
+	{
+		myState = 0;
+                PackData();
+		SendData();
+		ApplyLedState();
 		WriteConfig();
 	}
 }

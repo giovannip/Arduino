@@ -25,7 +25,7 @@ byte targetId;
 byte autoLoop;
 
 byte SendedPackage[2]; //Gambi -> pq struct nao fuincionou
-byte RecivedPackage[2];
+byte RecivedPackage[3];
 // [0] Id
 // [1] State
  
@@ -87,43 +87,17 @@ void ApplyLedState()
 
 void SendData()
 {
+	Serial.println("SendData");
 	int ntry = 3;
-	bool ok = false;
-	while ((!ok) && ntry > 0)
+	bool done = false;
+	while (!done && ntry > 0)
 	{
-		Serial.println("SendData");
-		radio.write( SendedPackage, sizeof(SendedPackage) );
-	
-		delay(5); // nao sei se eh pouco ou muito
-
-		if (radio.available())
-		{
-			Serial.println("radio.available");
-		
-			// Dump the payloads until we've gotten everything
-			bool done = false;
-			while (!done)
-			{
-				// Fetch the payload, and see if this was the last one.
-				done = radio.read( RecivedPackage, sizeof(RecivedPackage) );
-			}
-			
-			if (SendedPackage[0] == RecivedPackage[0])
-				ok = (RecivedPackage[1] == 1);
-			else
-			{
-				Serial.print("Resposta randon de ok -> ");
-				Serial.println(RecivedPackage[0]);
-				ntry++; //peguei uma resposta randon de alguem... nao conta
-			}
-		}
+		done = radio.write( SendedPackage, sizeof(SendedPackage) );
 		ntry--;
 	}
-	
+	radio.startListening();
 	Serial.print("SendData ok -> ");
-	Serial.print(ok);
-	Serial.print(" : ntry -> ");
-	Serial.println(ntry);
+	Serial.println(done);
 }
 
  
@@ -153,21 +127,43 @@ void easyGo()
 
 void loop(void)
 {
-	if (autoLoop == LOW)
-		return;
-	
-	myState = !myState;
+	if (autoLoop == HIGH)
+	{	
+		myState = !myState;
 
-	easyGo();
+		easyGo();
+		
+		delay(500);
+	}
+	if (radio.available())
+	{
+		Serial.println("radio.available");
 	
-	delay(500);
+		int ntry = 3;
+		bool done = false;
+		while (!done && ntry > 0)
+		{
+			done = radio.read( RecivedPackage, sizeof(RecivedPackage) );
+			ntry--;
+		}
+                if (RecivedPackage[0] != myId)
+                {
+          		myState = RecivedPackage[1];
+  	        	ApplyLedState();
+                }
+	}
 }
 
 void serialEvent() 
 {
 	char inChar = (char)Serial.read(); 
 	
-	if (inChar == SetClient1)
+	if (inChar == 'm')
+	{
+		myId = 99;
+		WriteConfig();
+	}
+	else if (inChar == SetClient1)
 		targetId = 1;
 	else if (inChar == SetClient2) 
 		targetId = 2;
