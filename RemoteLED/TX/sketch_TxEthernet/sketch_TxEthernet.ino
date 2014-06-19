@@ -175,8 +175,6 @@ void loop(void)
 
 					client.println("<HTML>");
 					client.println("<HEAD>");
-					client.println("<meta name='apple-mobile-web-app-capable' content='yes' />");
-					client.println("<meta name='apple-mobile-web-app-status-bar-style' content='black-translucent' />");
 					client.println("<link rel='stylesheet' type='text/css' href='http://homeautocss.net84.net/a.css' />");
 					client.println("<TITLE>Home Automation</TITLE>");
 					client.println("</HEAD>");
@@ -185,10 +183,17 @@ void loop(void)
 					client.println("<hr />");
 					client.println("<br />");
 
+					client.println("<a href=\"/?LedVemelhaOn\"\">Vermelho On</a>");
+					client.println("<a href=\"/?LedVerdeOn\"\">Verde On</a><br /><br /><br />");  
+					client.println("<a href=\"/?LedVermelhaOff\"\">VermelhoOff</a>");
+					client.println("<a href=\"/?LedVerdeOff\"\">Verde Off</a><br /><br /><br />");  
+					
 					client.println("<a href=\"/?SetClient1\"\">Set Client Vermelho</a>");
-					client.println("<a href=\"/?SetClient2\"\">Set Client Verde</a><br /><br /><br />");        
+					client.println("<a href=\"/?SetClient2\"\">Set Client Verde</a><br /><br /><br />");  
+					
 					client.println("<a href=\"/?LedOn\"\">Led On</a>");
 					client.println("<a href=\"/?LedOff\"\">Led Off</a><br /><br /><br />");        
+					
 					client.println("<a href=\"/?AutoOn\"\">Auto Play On</a>");
 					client.println("<a href=\"/?AutoOff\"\">Auto Play Off</a><br /><br /><br />");        
 
@@ -200,7 +205,28 @@ void loop(void)
 					client.stop();
 
 					byte change = 1;
-					if(readString.indexOf("?SetClient1") > 0)
+					if(readString.indexOf("?LedVemelhaOn") > 0)
+					{
+						targetId = 1;
+						myState = HIGH;
+					}
+					else if(readString.indexOf("?LedVerdeOn") > 0)
+					{
+						targetId = 2;
+						myState = HIGH;
+					}
+					else if(readString.indexOf("?LedVermelhaOff") > 0)
+					{
+						targetId = 1;
+						myState = LOW;
+					}
+					else if(readString.indexOf("?LedVerdeOff") > 0)
+					{
+						targetId = 2;
+						myState = LOW;
+					}
+					
+					else if(readString.indexOf("?SetClient1") > 0)
 						targetId = 1;
 					else if(readString.indexOf("?SetClient2") > 0)
 						targetId = 2;
