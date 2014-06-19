@@ -5,6 +5,8 @@
 //for use with W5100 based ethernet shields
 //Powering a servo from the arduino usually DOES NOT WORK.
 //note that the below bug fix may be required
+
+
 // http://code.google.com/p/arduino/issues/detail?id=605
  
 #include <SPI.h>
